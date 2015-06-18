@@ -1,10 +1,15 @@
 #!perl
 
+# DATE
+# VERSION
+
 use 5.010001;
 use strict;
 use warnings;
 
 use Perinci::CmdLine::Any;
+
+our %SPEC;
 
 $SPEC{dump_data_section_seekable} = {
     v => 1.1,
@@ -16,9 +21,10 @@ $SPEC{dump_data_section_seekable} = {
         file => {
             schema=>'str*',
             'x.schema.entity' => 'filename',
+            pos => 0,
         },
         module => {
-            schema=>'str*'
+            schema=>'str*',
             'x.schema.entity' => 'modulename',
         },
     },
@@ -52,14 +58,15 @@ sub dump_data_section_seekable {
 
     [200, "OK", {
         num_parts => ~~@parts,
-        parts => [{
+        parts => [map {+{
             name => $_,
-            content => $reader->part($_),
-            extra => $reader->extra($_),
-        }  @parts],
+            content => $reader->read_part($_),
+            extra => $reader->read_extra($_),
+        }} @parts],
     }];
 }
 
-our %SPEC;
+Perinci::CmdLine::Any->new(url => '/main/dump_data_section_seekable')->run;
 
-Perinci::CmdLine::Any->new(url => '/main/dump_datapack')->run;
+# ABSTRACT:
+# PODNAME:
