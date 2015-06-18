@@ -1,0 +1,65 @@
+#!perl
+
+use 5.010001;
+use strict;
+use warnings;
+
+use Perinci::CmdLine::Any;
+
+$SPEC{dump_data_section_seekable} = {
+    v => 1.1,
+    summary => 'Dump Data::Section::Seekable structure in a Perl file or module',
+    args_rels => {
+        req_one => [qw/file module/],
+    },
+    args => {
+        file => {
+            schema=>'str*',
+            'x.schema.entity' => 'filename',
+        },
+        module => {
+            schema=>'str*'
+            'x.schema.entity' => 'modulename',
+        },
+    },
+};
+sub dump_data_section_seekable {
+    my %args = @_;
+
+    my $path;
+    if ($args{module}) {
+        require Module::Path::More;
+        $path = Module::Path::More::module_path(module => $args{module})
+            or return [404, "No such module"];
+    } else {
+        $path = $args{file};
+    }
+
+    (-f $path) or return [404, "No such file"];
+    open my($fh), "<", $path or return [500, "Can't open file '$path': $!"];
+
+    my $found;
+    while (<$fh>) {
+        chomp;
+        do {$found++; last} if /\A__DATA__\z/;
+    }
+    return [412, "No __DATA__ found in file"] unless $found;
+
+    require Data::Section::Seekable::Reader;
+    my $reader = Data::Section::Seekable::Reader->new(handle=>$fh);
+
+    my @parts = $reader->parts;
+
+    [200, "OK", {
+        num_parts => ~~@parts,
+        parts => [{
+            name => $_,
+            content => $reader->part($_),
+            extra => $reader->extra($_),
+        }  @parts],
+    }];
+}
+
+our %SPEC;
+
+Perinci::CmdLine::Any->new(url => '/main/dump_datapack')->run;
